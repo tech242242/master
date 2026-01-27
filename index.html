@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .dot-on { background-color: #10b981; box-shadow: 0 0 10px #10b981; }
+        .dot-off { background-color: #ef4444; box-shadow: 0 0 10px #ef4444; }
+        .card-hover:hover { transform: translateY(-2px); transition: all 0.3s ease; border-color: rgba(6, 182, 212, 0.5); }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+            <div>
+                <h1 class="text-3xl font-black tracking-tighter italic">MASTER <span class="text-cyan-500 underline">CONTROL</span></h1>
+                <p class="text-slate-400 text-sm">System wide permissions and stats</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="bg-slate-800/80 px-4 py-2 rounded-2xl text-[10px] font-black border border-slate-700 tracking-widest text-cyan-400">
+                    <i class="fas fa-server mr-2"></i> SUPABASE CONNECTED
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats Section -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+            <div class="glass p-5 rounded-3xl">
+                <p class="text-slate-500 text-[10px] uppercase font-black mb-1">Total Users</p>
+                <p id="stat-admins" class="text-2xl font-bold text-white">0</p>
+            </div>
+            <div class="glass p-5 rounded-3xl">
+                <p class="text-slate-500 text-[10px] uppercase font-black mb-1">Global Hits</p>
+                <p id="stat-hits" class="text-2xl font-bold text-cyan-400">0</p>
+            </div>
+            <div class="glass p-5 rounded-3xl">
+                <p class="text-slate-500 text-[10px] uppercase font-black mb-1">Active Portals</p>
+                <p id="stat-active" class="text-2xl font-bold text-emerald-400">0</p>
+            </div>
+            <div class="glass p-5 rounded-3xl">
+                <p class="text-slate-500 text-[10px] uppercase font-black mb-1">System Status</p>
+                <p class="text-2xl font-bold text-emerald-500 uppercase text-xs">Online</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Permissions Control -->
+            <div class="lg:col-span-2 glass rounded-[2rem] p-8 relative overflow-hidden">
+                <h2 class="text-xl font-bold mb-8 flex items-center gap-3">
+                    <i class="fas fa-sliders text-cyan-500"></i> Platform Permissions
+                </h2>
+                <div id="controls-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="col-span-full text-center py-10 text-slate-500">
+                        <i class="fas fa-circle-notch fa-spin mr-2"></i> Fetching platform status...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="space-y-4">
+                <div class="glass rounded-[2rem] p-6 border-l-4 border-cyan-500">
+                    <h3 class="font-bold mb-4">Quick Actions</h3>
+                    <div class="space-y-3">
+                        <button onclick="updateAll(true)" class="w-full bg-emerald-600/20 hover:bg-emerald-600 p-3 rounded-2xl text-xs font-bold transition-all">ENABLE ALL</button>
+                        <button onclick="updateAll(false)" class="w-full bg-red-600/20 hover:bg-red-600 p-3 rounded-2xl text-xs font-bold transition-all">DISABLE ALL</button>
+                        <button onclick="refresh()" class="w-full bg-slate-800 hover:bg-slate-700 p-3 rounded-2xl text-xs font-bold transition-all uppercase tracking-widest">Manual Sync</button>
+                    </div>
+                </div>
+                <div class="glass rounded-[2rem] p-6 text-xs text-slate-400 italic">
+                    Note: Changing these settings will instantly affect all sub-admin dashboards connected to this database.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SB_URL = 'https://irryclyepdnmncxyhgla.supabase.co';
+        const SB_KEY = 'sb_publishable_SBAazL4Lqp4g2LC81O-FWQ_dX2zKek6';
+        const platforms = ['tiktok', 'facebook', 'instagram', 'snapchat'];
+
+        async function refresh() {
+            try {
+                // Fetch Total Hits from 'targets' table
+                const hRes = await fetch(`${SB_URL}/rest/v1/targets?select=count`, { 
+                    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Prefer': 'count=exact' }
+                });
+                document.getElementById('stat-hits').innerText = hRes.headers.get('content-range')?.split('/')[1] || 0;
+
+                // Fetch Total Users from 'users' table
+                const aRes = await fetch(`${SB_URL}/rest/v1/users?select=count`, { 
+                    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Prefer': 'count=exact' }
+                });
+                document.getElementById('stat-admins').innerText = aRes.headers.get('content-range')?.split('/')[1] || 0;
+
+                // Fetch Permissions Settings
+                const sRes = await fetch(`${SB_URL}/rest/v1/global_settings?id=eq.1`, { 
+                    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
+                });
+                const settings = await sRes.json();
+                if (settings.length > 0) {
+                    render(settings[0]);
+                } else {
+                    console.error("Settings row not found.");
+                    document.getElementById('controls-container').innerHTML = `<p class="col-span-full text-center text-red-500">Settings not found. Please run the SQL query first.</p>`;
+                }
+            } catch (e) { 
+                console.error("Fetch Error:", e);
+            }
+        }
+
+        function render(data) {
+            const container = document.getElementById('controls-container');
+            container.innerHTML = '';
+            let active = 0;
+            platforms.forEach(p => {
+                const on = data[p] === true;
+                if(on) active++;
+                container.innerHTML += `
+                    <div class="glass p-5 rounded-3xl border ${on ? 'border-cyan-500/20' : 'border-red-500/20'} card-hover">
+                        <div class="flex justify-between items-center">
+                            <i class="fab fa-${p} text-2xl ${on ? 'text-cyan-400' : 'text-slate-600'}"></i>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" ${on ? 'checked' : ''} onchange="toggle('${p}', this.checked)" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                            </label>
+                        </div>
+                        <p class="mt-4 font-bold capitalize">${p}</p>
+                        <p class="text-[10px] font-black ${on ? 'text-emerald-400' : 'text-red-400'}">${on ? 'ACTIVE' : 'DISABLED'}</p>
+                    </div>
+                `;
+            });
+            document.getElementById('stat-active').innerText = active;
+        }
+
+        async function toggle(p, val) {
+            const body = {}; body[p] = val;
+            try {
+                const res = await fetch(`${SB_URL}/rest/v1/global_settings?id=eq.1`, {
+                    method: 'PATCH',
+                    headers: { 
+                        apikey: SB_KEY, 
+                        Authorization: `Bearer ${SB_KEY}`, 
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify(body)
+                });
+                if(res.ok) refresh();
+            } catch (e) { alert("Toggle failed!"); }
+        }
+
+        async function updateAll(val) {
+            const body = {}; platforms.forEach(p => body[p] = val);
+            try {
+                const res = await fetch(`${SB_URL}/rest/v1/global_settings?id=eq.1`, {
+                    method: 'PATCH',
+                    headers: { 
+                        apikey: SB_KEY, 
+                        Authorization: `Bearer ${SB_KEY}`, 
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify(body)
+                });
+                if(res.ok) refresh();
+            } catch (e) { alert("Bulk Update failed!"); }
+        }
+
+        // Initial Load
+        refresh();
+        // Refresh every 10 seconds for real-time stats
+        setInterval(refresh, 10000);
+    </script>
+</body>
+</html>
